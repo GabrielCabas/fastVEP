@@ -122,31 +122,33 @@ impl AnnotationContext {
             Vec::new()
         };
 
-        let seq_provider: Option<Box<dyn SequenceProvider + Send + Sync>> =
-            if let Some(fasta_path) = fasta {
-                match ReferenceFasta::open(Path::new(fasta_path))? {
-                    ReferenceFasta::Mapped(reader) => {
-                        tracing::info!("Memory-mapped FASTA from {}", fasta_path);
-                        Some(Box::new(
-                            fastvep_cache::providers::MmapFastaSequenceProvider::new(reader),
-                        ))
-                    }
-                    ReferenceFasta::Loaded {
-                        reader,
-                        ignored_fai,
-                    } => {
-                        if ignored_fai {
-                            tracing::warn!(
+        let seq_provider: Option<Box<dyn SequenceProvider + Send + Sync>> = if let Some(
+            fasta_path,
+        ) = fasta
+        {
+            match ReferenceFasta::open(Path::new(fasta_path))? {
+                ReferenceFasta::Mapped(reader) => {
+                    tracing::info!("Memory-mapped FASTA from {}", fasta_path);
+                    Some(Box::new(
+                        fastvep_cache::providers::MmapFastaSequenceProvider::new(reader),
+                    ))
+                }
+                ReferenceFasta::Loaded {
+                    reader,
+                    ignored_fai,
+                } => {
+                    if ignored_fai {
+                        tracing::warn!(
                                 "Ignoring {fasta_path}.fai: the FASTA is gzip-compressed, and a .fai addresses the uncompressed file"
                             );
-                        }
-                        tracing::info!("Loaded FASTA from {}", fasta_path);
-                        Some(Box::new(FastaSequenceProvider::new(reader)))
                     }
+                    tracing::info!("Loaded FASTA from {}", fasta_path);
+                    Some(Box::new(FastaSequenceProvider::new(reader)))
                 }
-            } else {
-                None
-            };
+            }
+        } else {
+            None
+        };
 
         // A non-coding transcript needs its spliced sequence only for HGVS - the
         // 3'-rule and `dup` collapsing are read off it - and building it for
